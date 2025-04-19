@@ -1,0 +1,181 @@
+from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.feature_extraction.text import TfidfVectorizer
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+
+
+movies = pd.read_csv('moviesss.csv')
+
+movies.head(5)
+
+
+movies.shape
+
+# create a function to create a table showing the numbers of missing values for each feature
+def create_missing_df(dataframe):
+  
+  missing_index = dataframe.columns.tolist() 
+  missing = dataframe.isnull().sum().tolist()
+  missing_df = pd.DataFrame({'Missing':missing}, index=missing_index)
+
+  return missing_df
+
+create_missing_df(movies)
+
+# the function to extract titles
+def extract_title(title):
+
+  year = title[len(title)-5:len(title)-1]
+
+  # some movies do not have the info about year in the column title. So, we should take care of the case as well.
+  if year.isnumeric():
+    title_no_year = title[:len(title)-7]
+    return title_no_year
+
+  else:
+    return title
+
+# the function to extract years
+def extract_year(title):
+
+  year = title[len(title)-5:len(title)-1]
+
+  # some movies do not have the info about year in the column title. So, we should take care of the case as well.
+  if year.isnumeric():
+    return int(year)
+
+  else:
+    return np.nan
+     
+
+r,c = movies[movies['genre']=='(no genre listed)'].shape 
+print('The number of movies which do not have info about genres:',r)
+
+movies = movies[~(movies['genre']=='(no genre listed)')].reset_index(drop=True)
+
+movies[['movie_name','genre']].head(5)
+
+# remove '|' in the genres column
+movies['genre'] = movies['genre'].str.replace('|',' ')
+
+# count the number of occurences for each genre in the data set
+counts = dict()
+
+for i in movies.index:
+  for g in movies.loc[i,'genre'].split(' '):
+    if g not in counts:
+      counts[g] = 1
+    else:
+      counts[g] = counts[g] + 1
+     
+
+
+plt.figure(figsize=(12,6))
+plt.bar(list(counts.keys()), counts.values(), color='g')
+plt.xticks(rotation=45)
+plt.xlabel('Genre')
+plt.ylabel('Counts')
+
+
+from sklearn.feature_extraction.text import TfidfVectorizer
+
+
+movies['genre'] = movies['genre'].str.replace('Sci-Fi','SciFi')
+movies['genre'] = movies['genre'].str.replace('Film-Noir','Noir')
+
+tfidf_vector = TfidfVectorizer(stop_words='english') # create an object for TfidfVectorizer
+tfidf_matrix = tfidf_vector.fit_transform(movies['genre']) # apply the object to the genres column
+
+print(list(enumerate(tfidf_vector.get_feature_names_out())))
+
+
+
+print(tfidf_matrix[:5])
+
+tfidf_matrix.shape
+
+
+# the first row vector of tfidf_matrix 
+tfidf_matrix.todense()[0]
+
+from sklearn.metrics.pairwise import linear_kernel
+
+
+sim_matrix = linear_kernel(tfidf_matrix,tfidf_matrix) # create the cosine similarity matrix
+print(sim_matrix)
+
+
+# the function to convert from index to title_year
+def get_title_year_from_index(index):
+
+  return movies[movies.index == index]['title_year'].values[0]
+
+# the function to convert from title to index
+def get_index_from_title(title):
+
+  return movies[movies.title == title].index.values[0]
+
+import subprocess
+subprocess.run(["pip", "install", "fuzzywuzzy"])
+
+
+from fuzzywuzzy import fuzz
+
+# create a function to find the closest title
+def matching_score(a,b):
+
+  return fuzz.ratio(a,b)
+
+# a function to convert index to title
+def get_title_from_index(index):
+    return movies.iloc[index]['movie_name']
+
+
+
+
+def find_closest_title(title):
+    leven_scores = list(enumerate(movies['movie_name'].apply(matching_score, b=title)))  
+    sorted_leven_scores = sorted(leven_scores, key=lambda x: x[1], reverse=True)
+    closest_title = get_title_from_index(sorted_leven_scores[0][0])  # Ensure get_title_from_index uses 'movie_name'
+    distance_score = sorted_leven_scores[0][1]
+
+    return closest_title, distance_score
+
+
+def get_index_from_title(title):
+    return movies[movies.movie_name == title].index.values[0]
+
+def contents_based_recommender(movie_user_likes, how_many):
+    # Find the closest matching movie title
+    closest_title, distance_score = find_closest_title(movie_user_likes)
+
+    if distance_score == 100:
+        movie_index = get_index_from_title(closest_title)  # Get index of the movie
+        movie_list = list(enumerate(sim_matrix[int(movie_index)]))  # Get similarity scores
+        similar_movies = list(filter(lambda x: x[0] != int(movie_index), 
+                                     sorted(movie_list, key=lambda x: x[1], reverse=True)))  # Remove the input movie itself
+
+        print(f"Here's the list of movies similar to \033[1m{closest_title}\033[0m:\n")
+        
+        for i, s in similar_movies[:how_many]: 
+            print(get_title_from_index(i))  # Fetch only the movie title
+
+    else:
+        print(f"Did you mean \033[1m{closest_title}\033[0m?\n")
+
+        movie_index = get_index_from_title(closest_title)
+        movie_list = list(enumerate(sim_matrix[int(movie_index)]))
+        similar_movies = list(filter(lambda x: x[0] != int(movie_index), 
+                                     sorted(movie_list, key=lambda x: x[1], reverse=True)))
+
+        print(f"Here's the list of movies similar to \033[1m{closest_title}\033[0m:\n")
+
+        for i, s in similar_movies[:how_many]:
+            print(get_title_from_index(i))  # Fetch only the movie title
+
+
+
+
+
+

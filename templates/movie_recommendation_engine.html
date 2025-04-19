@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Movie Recommendation System</title>
+    <style>
+        body {
+            background-color: black;
+            color: white;
+            font-family: Arial, sans-serif;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+        h1 {
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        h1 img {
+            width: 40px;
+            height: 40px;
+        }
+        input {
+            padding: 10px;
+            width: 250px;
+            margin-bottom: 10px;
+            border: none;
+            border-radius: 5px;
+        }
+        button {
+            padding: 10px 15px;
+            background-color: #ff6600;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #e65c00;
+        }
+        #results {
+            margin-top: 20px;
+        }
+        #results ul {
+            color: #FFFF33;
+            list-style-type: none;
+            padding: 0;
+        }
+    </style>
+    <script>
+        async function getRecommendations() {
+            const movie = document.getElementById("movie-input").value;
+            const response = await fetch("/recommend", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ movie: movie })
+            });
+            const recommendations = await response.json();
+            document.getElementById("results").innerHTML = "<h3>Recommended Movies:</h3><ul>" + 
+                recommendations.map(movie => `<li>${movie}</li>`).join('') + "</ul>";
+        }
+    </script>
+</head>
+<body>
+    <h1>
+        <img src="https://cdn-icons-png.flaticon.com/512/1179/1179069.png" alt="Movie Icon">
+        Movie Recommendation System
+    </h1>
+    <input type="text" id="movie-input" placeholder="Enter a movie name" />
+    <button onclick="getRecommendations()">Get Recommendations</button>
+    <div id="results"></div>
+</body>
+</html>
